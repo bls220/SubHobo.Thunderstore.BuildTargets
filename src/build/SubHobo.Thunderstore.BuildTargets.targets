@@ -1,0 +1,109 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <Title Condition="'$(Title)' == ''">$(Product.Replace('_',' '))</Title>
+
+        <ThunderPackageId Condition="'$(ThunderPackageId)' == ''">$(Product.Replace(' ','').Replace('.','_'))</ThunderPackageId>
+        <ThunderPackageTeamName Condition="'$(ThunderPackageTeamName)' == ''">$(Company.Replace(' ','').Replace('.','_'))</ThunderPackageTeamName>
+        <ThunderPackageName Condition="'$(ThunderPackageName)' == ''">$(ThunderPackageTeamName)-$(ThunderPackageId)</ThunderPackageName>
+        <ThunderPackageDeployFolder Condition="'$(ThunderPackageDeployFolder)' == ''">BepInEx/plugins/$(ThunderPackageName)</ThunderPackageDeployFolder>
+        <ThunderPackageIcon Condition="'$(ThunderPackageIcon)' == ''">$(ProjectDir)icon.png</ThunderPackageIcon>
+    </PropertyGroup>
+
+    <!-- Defined outside of target to allow the target to be skipped if file is unchanged-->
+    <ItemGroup>
+        <_ThunderPackageIcons Include="$(ThunderPackageIcon)" />
+    </ItemGroup>
+
+    <!-- With thunderstore mods we should suppress all references by default -->
+    <ItemDefinitionGroup>
+        <PackageReference>
+            <Private>False</Private>
+        </PackageReference>
+        <ProjectReference>
+            <Private>False</Private>
+        </ProjectReference>
+        <Reference>
+            <Private>False</Private>
+        </Reference>
+    </ItemDefinitionGroup>
+
+
+
+
+
+    <Target Name="_CheckPackagingSetup" BeforeTargets="PackageForThunderStore">
+        <Error Code="TSP001"
+            Condition="'$(ThunderPackageId)' == ''"
+            Text="ThunderPackageId or Product are required to be set."/>
+        <Error Code="TSP002"
+            Condition="'@(_ThunderPackageIcons)' == ''"
+            Text="ThunderPackageIcon is set incorrectly"/>
+        <Warning Code="TSP003"
+            Condition="'$(ThunderPackageTeamName)' == ''"
+            Text="ThunderPackageTeamName and/or Company are not set."/>
+    </Target>
+
+    <!-- shoutout to https://github.com/Cryptoc1/lc-plugin-sdk/blob/main/src/Sdk/Sdk.targets for this gem -->
+    <Target Name="_GeneratePluginManifest" BeforeTargets="PackageForThunderStore" Inputs="$(MSBuildAllProjects)" Outputs="$(OutputPath)manifest.json">
+        <PropertyGroup>
+            <_ThunderDependencies>@(ThunderDependency -> '"%(Filename)%(Extension)"')</_ThunderDependencies>
+            <_GeneratedManifestText>
+                <![CDATA[{
+    "name": "$(ThunderPackageId)",
+    "description": "$(Description)",
+    "version_number": "$(Version)",
+    "website_url": "$(RepositoryUrl)",
+    "dependencies": [$(_ThunderDependencies.Replace('%3B', ','))]
+}]]>
+            </_GeneratedManifestText>
+        </PropertyGroup>
+
+        <WriteLinesToFile Lines="$(_GeneratedManifestText)" File="$(OutputPath)manifest.json" WriteOnlyWhenDifferent="true" Overwrite="true"/>
+    </Target>
+
+    <Target Name="_CopyPluginIcons" BeforeTargets="PackageForThunderStore" Inputs="@(_ThunderPackageIcons)" Outputs="@(_ThunderPackageIcons->'$(OutputPath)icon%(extension)')">
+        <Error Code="TSP004"
+            Condition="!Exists('@(_ThunderPackageIcons)')"
+            File="'@(_ThunderPackageIcons)'"
+            Text="$(ThunderPackageIcon) was not found."/>
+        <Copy SourceFiles="@(_ThunderPackageIcons)" DestinationFiles="@(_ThunderPackageIcons->'$(OutputPath)icon.png')"/>
+    </Target>
+
+    <!-- Package and Deploy -->
+    <Target Name="PackageForThunderStore" AfterTargets="Build">
+        <Error Code="TSP005"
+            Condition="!Exists('$(OutputPath)README.md')"
+            File="$(OutputPath)README.md"
+            Text="$(OutputPath)README.md is required, but does not exist"/>
+        <Error Code="TSP006"
+            Condition="!Exists('$(OutputPath)icon.png')"
+            File="$(OutputPath)icon.png"
+            Text="$(OutputPath)icon.png is required, but does not exist"/>
+        <Error Code="TSP007"
+            Condition="!Exists('$(OutputPath)manifest.json')"
+            File="$(OutputPath)manifest.json"
+            Text="$(OutputPath)manifest.json is required, but does not exist"/>
+        <ItemGroup>
+            <_OutputFiles Include="$(OutputPath)/*"/>
+        </ItemGroup>
+        <Copy SourceFiles="@(_OutputFiles)" DestinationFolder="$(ThunderPackagingPath)"/>
+        <ZipDirectory SourceDirectory="$(ThunderPackagingPath)" DestinationFile="$(ThunderPackagingRoot)$(ThunderPackageName).zip" Overwrite="true" Condition="Exists('$(ThunderPackagingPath)')" />
+    </Target>
+
+    <Target Name="_DeployToGameFolder" AfterTargets="PackageForThunderStore" Condition="$(DeployToGamePath)">
+        <Error Code="TSP008"
+            Condition="'$(GamePath)' == ''"
+            Text="GamePath is required to be set, if deploying to game folder."/>
+        <PropertyGroup>
+            <_DeployPath>$(GamePath)$(ThunderPackageDeployFolder)</_DeployPath>
+        </PropertyGroup>
+        <Unzip SourceFiles="$(ThunderPackagingRoot)$(ThunderPackageName).zip" DestinationFolder="$(_DeployPath)" Condition="Exists('$(ThunderPackagingRoot)$(ThunderPackageName).zip')" />
+        <Delete Files="$(_DeployPath)manifest.json;$(_DeployPath)icon.png;$(_DeployPath)README.md" />
+    </Target>
+
+    <!-- Clean up -->
+    <Target Name="_CleanPackageForThunderStore" AfterTargets="CoreClean">
+        <RemoveDir Directories="$(ThunderPackagingPath)" />
+        <Delete Files="$(ThunderPackagingRoot)$(ThunderPackageName).zip" />
+    </Target>
+</Project>

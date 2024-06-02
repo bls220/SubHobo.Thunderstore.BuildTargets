@@ -1,0 +1,19 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ThunderPackagingRoot Condition="'$(ThunderPackagingRoot)' == ''">$(SolutionDir)dist/</ThunderPackagingRoot>
+        <ThunderPackagingPath Condition="'$(ThunderPackagingPath)' == ''">$(ThunderPackagingRoot)$(MSBuildProjectName)/</ThunderPackagingPath>
+        <DeployToGamePath Condition="'$(DeployToGamePath)' == ''">false</DeployToGamePath>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ThunderPackageIcons Include="$(ProjectDir)icon.png" Condition="'$(ThunderPackageIcon)' == ''"/>
+    </ItemGroup>
+
+    <ItemGroup Condition="Exists('$(ProjectDir)CHANGELOG.md')">
+        <None Include="$(ProjectDir)CHANGELOG.md" CopyToOutputDirectory="Always"/>
+    </ItemGroup>
+
+    <ItemGroup Condition="Exists('$(ProjectDir)README.md')">
+        <None Include="$(ProjectDir)README.md" CopyToOutputDirectory="Always"/>
+    </ItemGroup>
+</Project>
