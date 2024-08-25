@@ -61,7 +61,7 @@
         <WriteLinesToFile Lines="$(_GeneratedManifestText)" File="$(OutputPath)manifest.json" WriteOnlyWhenDifferent="true" Overwrite="true"/>
     </Target>
 
-    <Target Name="_CopyPluginIcons" BeforeTargets="PackageForThunderStore" Inputs="@(_ThunderPackageIcons)" Outputs="@(_ThunderPackageIcons->'$(OutputPath)icon%(extension)')">
+    <Target Name="_CopyPluginIcons" BeforeTargets="PackageForThunderStore" Inputs="@(_ThunderPackageIcons)" Outputs="@(_ThunderPackageIcons->'$(OutputPath)icon.png')">
         <Error Code="TSP004"
             Condition="!Exists('@(_ThunderPackageIcons)')"
             File="'@(_ThunderPackageIcons)'"
@@ -103,7 +103,9 @@
 
     <!-- Clean up -->
     <Target Name="_CleanPackageForThunderStore" AfterTargets="CoreClean">
-        <RemoveDir Directories="$(ThunderPackagingPath)" />
         <Delete Files="$(ThunderPackagingRoot)$(ThunderPackageName).zip" />
+        <RemoveDir Directories="$(ThunderPackagingPath)" />
+        <Delete Files="$(OutputPath)manifest.json" />
+        <Delete Files="$(OutputPath)icon.png" />
     </Target>
 </Project>
